@@ -18,9 +18,9 @@ noise = np.random.normal(mu, sigma, len(y_2X))
 y_with_noise = y_2X + noise
 
 #plot x and y with and without noise
-#plt.plot(X, y_with_noise, 'o', color='black')
-#plt.plot(X, y_2X, 'x', color='blue')
-
+plt.plot(X, y_with_noise, 'o', color='black')
+plt.plot(X, y_2X, 'x', color='blue')
+plt.show()
 print X.shape
 X = np.reshape(X, (len(X),1))
 y_with_noise = np.reshape(y_with_noise, (len(y_with_noise), 1))
@@ -28,6 +28,7 @@ y_with_noise = np.reshape(y_with_noise, (len(y_with_noise), 1))
 # now fit the X and y_with_noise data
 liner_regression.fit(X, y_with_noise)
 
+print "Predicting X=100", str(liner_regression.predict(100))
 # The coefficients
 print('Coefficients: \n', liner_regression.coef_)
 
@@ -37,7 +38,6 @@ print("Residual sum of squares: %.2f"
       % error)
 z = np.sqrt(error)
 print z
-
 print('Variance score: %.2f' % liner_regression.score(X, y_with_noise))
 
 plt.plot(X, y_2X, '+', color='blue')
@@ -48,4 +48,4 @@ plt.plot(X, liner_regression.predict(X), color='red',
 plt.xticks(())
 plt.yticks(())
 
-plt.show()
+#plt.show()
