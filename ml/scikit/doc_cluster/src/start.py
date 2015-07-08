@@ -30,8 +30,40 @@ print 'you collected ' + str(len(titles)) + ' titles.'
 
 str(links[0])
 
-import google
-g = google.doGoogleSearch('Titanic film wikipedia')
-g.pages = 5
-print '*Found %s results*'%(g.get_result_count())
-g.get_urls()
+
+import urllib2
+import simplejson
+
+# The request also includes the userip parameter which provides the end
+# user's IP address. Doing so will help distinguish this legitimate
+# server-side traffic from traffic which doesn't come from an end-user.
+url = ('https://ajax.googleapis.com/ajax/services/search/web'
+       '?v=1.0&q=machine%20learning&userip=USERS-IP-ADDRESS')
+
+results = simplejson.load(response)
+
+request = urllib2.Request(
+    url, None, {'Referer': {}})
+response = urllib2.urlopen(request)
+results = simplejson.load(response)
+print '*Found %s results*'%(len(results['responseData']['results']))
+
+links_wiki = []
+
+len(titles)
+import urllib
+import simplejson
+for i in titles[86:100]:
+    print i
+    query = urllib.urlencode({'q' : i + ' Film' + ' Wikipedia'})
+    url = 'https://ajax.googleapis.com/ajax/services/search/web?v=1.0&' + query
+    search_results = urllib2.urlopen(url)
+    json = simplejson.loads(search_results.read())
+    results = json['responseData']['results']
+    links_wiki.append(results[0]['url'])
+    print results[0]['url']
+    print
+
+titles
+
+https://github.com/brandomr/document_cluster/blob/master/Film%20Scrape.ipynb
