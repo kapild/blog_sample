@@ -3,6 +3,8 @@ import wikipedia
 from bs4 import BeautifulSoup
 import re
 from HTMLParser import HTMLParser
+from src.dump import dump_to_file
+
 
 class MLStripper(HTMLParser):
     def __init__(self):
@@ -226,9 +228,11 @@ def add_movies_synopsis(top_movies):
 
 # https://github.com/brandomr/document_cluster/blob/master/Film%20Scrape.ipynb
 
-movie_pickle_path  = "top_100_bolly.pkl"
-movie_pickle_path_post_synopsuis = "top_100_bolly_synopsis.pkl"
-movie_pickle_path_post_imdb_synopsis = "top_100_bolly_imdb_synopsis.pkl"
+__version__ = ""
+__data_path = "../data/"
+movie_pickle_path  = __data_path + "top_100_bolly.pkl" + __version__
+movie_pickle_path_post_synopsuis = __data_path + "top_100_bolly_synopsis.pkl"  + __version__
+movie_pickle_path_post_imdb_synopsis = __data_path + "top_100_bolly_imdb_synopsis.pkl" +  __version__
 
 def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies):
     try:
@@ -282,6 +286,8 @@ def run_movie_scrape():
 
     post_synopsis_top_movies = load_and_save_movie_synopsis(top_movies)
     post_imdb_synopsis_top_movies = load_and_save_imdb_movie_synopsis(post_synopsis_top_movies)
+
+    dump_to_file(post_imdb_synopsis_top_movies, __version__)
 
     print "done"
 
