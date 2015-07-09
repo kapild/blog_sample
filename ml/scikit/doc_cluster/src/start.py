@@ -1,4 +1,4 @@
-import urllib2
+import pickle
 import wikipedia
 from bs4 import BeautifulSoup
 import re
@@ -50,35 +50,36 @@ def get_top_film_links_titles():
     return movies
 
 
+def search_wiki_url(query, index):
+    try:
+        query += ' Film'
+        query = unicode(query).encode('utf-8')
+        print 'querying movie:' + str(index) + ":" + query
+        wp = wikipedia.page(query)
+        url = wp.url
+    except wikipedia.exceptions.DisambiguationError as e:
+        options_list = e.options
+        for opt in options_list:
+            if 'film' in opt:
+                wp = wikipedia.page(opt)
+                url = wp.url
+                break
+    except wikipedia.exceptions.PageError as e:
+        url = INVALID_PAGE
+    print 'url returned:' + url
+    print
+    return url
+
 def add_wiki_links(top_movies):
     total_movies = len(top_movies)
     for index in range(0, total_movies):
         movie = top_movies[index]
         if 'title' in movie:
             title = movie['title']
-            query = title + ' Film'
-            query = unicode(query).encode('utf-8')
-            print 'querying movie:' + str(index) + ":" + query
-            url = ""
-            try:
-                wp = wikipedia.page(query)
-                url = wp.url
-            except wikipedia.exceptions.DisambiguationError as e:
-                options_list = e.options
-                for opt in options_list:
-                    if 'film' in opt:
-                        wp = wikipedia.page(opt)
-                        url = wp.url
-                        break
-            except wikipedia.exceptions.PageError as e:
-                url = INVALID_PAGE
-            print 'url returned:' + url
-            print
+            url = search_wiki_url(title, index)
             movie['url'] = url
 
-
 import urllib2
-import simplejson
 
 # The request also includes the userip parameter which provides the end
 # user's IP address. Doing so will help distinguish this legitimate
@@ -97,37 +98,67 @@ import simplejson
 
 
 
-# synopses_wiki_plot = []
-#
+
+def search_imdb_synopsis(imdb_link_ref_link):
+    imdb_link = "http://www.imdb.com" + imdb_link_ref_link + "synopsis?ref_=tt_stry_pl"
+    print "Imdb link:" + imdb_link
+    request = urllib2.Request(imdb_link)
+    response = urllib2.urlopen(request)
+    soup = BeautifulSoup(response, "html.parser")
+    synopses_imdb = ""
+    for div in soup.findAll('div', {'id': 'swiki.2.1'}):
+        print div.text
+        synopses_imdb += div.text + "NEW_LINE"
+    return synopses_imdb
+
+def add_imdb_synopsis(top_movies):
+    total_movies = len(top_movies)
+    for index in range(0, total_movies):
+        movie = top_movies[index]
+        if 'link' in movie and (movie['link'] != "" and movie['link'] != INVALID_PAGE):
+            link = movie['link']
+            print "Querying imdb: " + str(index) + " " + link
+            inner_synopses = search_imdb_synopsis(link)
+            print str(index) + " imdb synopsis:" + inner_synopses
+            movie['imdb_synopsis'] = inner_synopses
+    return top_movies
+
+
+def search_wiki_synoposis(link):
+    print "URL:" + link
+    inner_synopses = ''
+    request = urllib2.Request(link)
+    response = urllib2.urlopen(request)
+    soup = BeautifulSoup(response, "html.parser")
+    patterns = ['Plot', 'Plot_summary', 'Plot_synopsis', 'Synopsis', 'Story']
+    next = None
+    for pattern in patterns:
+        print pattern
+        if soup.find('span', {'id': pattern}):
+            next = soup.find('span', {'id': pattern}).next
+            break
+
+    if next:
+        while next.name != "h2":
+            newnext = ''
+            print strip_tags(unicode(newnext).encode('utf-8', 'ignore'))
+            try:
+                inner_synopses = inner_synopses + ' ' + strip_tags(unicode(next).encode('utf-8', 'ignore')) + ' '
+            except:
+                innter_synopses = ''
+            next = next.next
+    return inner_synopses
+
 
 def add_movies_synopsis(top_movies):
     total_movies = len(top_movies)
     for index in range(0, total_movies):
         movie = top_movies[index]
-        if 'url' in movie and movie['url'] != INVALID_PAGE:
+        if 'url' in movie and (movie['url'] != "" and movie['url'] != INVALID_PAGE):
             link = movie['url']
-            print "URL:" + link
-
-            inner_synopses = ''
-            request = urllib2.Request(link)
-            response = urllib2.urlopen(request)
-            soup = BeautifulSoup(response, "html.parser")
-            patterns = ['Plot', 'Plot_summary', 'Plot_synopsis', 'Synopsis', 'Story']
-            for pattern in patterns:
-                print pattern
-                if soup.find('span', {'id': pattern}):
-                    next = soup.find('span', {'id': pattern}).next
-                    break
-            while next.name != "h2":
-                newnext = ''
-                print strip_tags(unicode(newnext).encode('utf-8','ignore'))
-                try:
-                    inner_synopses = inner_synopses + ' ' + strip_tags(unicode(next).encode('utf-8', 'ignore')) + ' '
-                except:
-                    innter_synopses = ''
-                next = next.next
+            inner_synopses = search_wiki_synoposis(link)
             print inner_synopses
-            movie['synopsis'] = inner_synopses
+            movie['wiki_synopsis'] = inner_synopses
 
 # synopses_wiki = []
 # for i in titles:
@@ -145,16 +176,6 @@ def add_movies_synopsis(top_movies):
 #     synopses_wiki.append(inner_synopses)
 
 
-# synopses_imdb = []
-# for i in links:
-#     print "http://www.imdb.com" + str(i) + "synopsis?ref_=tt_stry_pl"
-#     request = urllib2.Request("http://www.imdb.com" + str(i) + "synopsis?ref_=tt_stry_pl")
-#     response = urllib2.urlopen(request)
-#     soup = BeautifulSoup(response, "html.parser")
-#
-#     for div in soup.findAll('div', {'id': 'swiki.2.1'}):
-#         print div.text
-#         synopses_imdb.append(div.text)
 #
 # genres = []
 #
@@ -192,31 +213,10 @@ def add_movies_synopsis(top_movies):
 # for i in range(len(links)):
 #     links[i] = 'http://www.imdb.com' + str(links[i])
 
-#imdb links
-# links_list = open('link_list_imdb.txt', 'w')
 #
-# links_imdb = links
-# for item in links_imdb:
-#   links_list.write("%s\n" % item)
-# links_list.close()
 #
-# #wiki synopses
-# synopses_list = open('synopses_list_wiki.txt', 'w')
-# for item in synopses_wiki_plot:
-#   synopses_list.write("%s\n BREAKS HERE" % item)
-# synopses_list.close()
-#
-# #imdb synopses
-# synopses_list = open('synopses_list_imdb.txt', 'w')
-# for item in synopses_imdb:
 #   synopses_list.write("%s\n BREAKS HERE" % item.encode('utf-8'))
-# synopses_list.close()
 #
-# genres_list = open('genres_list.txt', 'w')
-# for item in genres:
-#   genres_list.write("%s\n" % item)
-#
-# genres_list.close()
 # # import urllib2
 # # opener = urllib2.build_opener()
 # # opener.addheaders = [('User-agent', 'Mozilla/5.0')]
@@ -227,18 +227,37 @@ def add_movies_synopsis(top_movies):
 # https://github.com/brandomr/document_cluster/blob/master/Film%20Scrape.ipynb
 
 movie_pickle_path  = "top_100_bolly.pkl"
-import pickle
-def run_movie_scrape():
+movie_pickle_path_post_synopsuis = "top_100_bolly_synopsis.pkl"
+movie_pickle_path_post_imdb_synopsis = "top_100_bolly_imdb_synopsis.pkl"
 
+def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies):
     try:
-        print "Loading pickle movie object:" + movie_pickle_path
-        top_movies = pickle.load( open(movie_pickle_path, "rb"))
-        print 'Loaded ' + str(len(top_movies)) + ' movies'
+        print "Loading pickle movie object(post imdb synopsis):" + movie_pickle_path_post_imdb_synopsis
+        post_imdb_synopsis_top_movies = pickle.load(open(movie_pickle_path_post_imdb_synopsis, "rb"))
+        print 'Loaded ' + str(len(post_imdb_synopsis_top_movies)) + ' movies'
+        return post_imdb_synopsis_top_movies
     except Exception as e:
-        print "Pickle object not found at :" + movie_pickle_path
-        top_movies = load_and_save_movie_pickle()
+        print "Getting synopsis."
+        post_imdb_synopsis_top_movies = add_imdb_synopsis(post_synopsis_top_movies)
+        pickle.dump(post_imdb_synopsis_top_movies, open(movie_pickle_path_post_imdb_synopsis, "wb"))
+        print "Pickling movie objects (post imdb synopsis):" + movie_pickle_path_post_imdb_synopsis
+        return post_imdb_synopsis_top_movies
 
-    add_movies_synopsis(top_movies)
+
+def load_and_save_movie_synopsis(top_movies):
+    try:
+        print "Loading pickle movie object(post synopsis):" + movie_pickle_path_post_synopsuis
+        post_synopsis_top_movies = pickle.load(open(movie_pickle_path_post_synopsuis, "rb"))
+        print 'Loaded ' + str(len(post_synopsis_top_movies)) + ' movies'
+        return post_synopsis_top_movies
+    except Exception as e:
+        print "Getting synopsis."
+        add_movies_synopsis(top_movies)
+        pickle.dump(top_movies, open(movie_pickle_path_post_synopsuis, "wb"))
+        print "Pickling movie objects (post synopsis):" + movie_pickle_path_post_synopsuis
+
+        return top_movies
+
 
 def load_and_save_movie_pickle():
     try:
@@ -250,6 +269,21 @@ def load_and_save_movie_pickle():
         pickle.dump(top_movies, open(movie_pickle_path, "wb"))
     return top_movies
 
+
+def run_movie_scrape():
+
+    try:
+        print "Loading pickle movie object:" + movie_pickle_path
+        top_movies = pickle.load(open(movie_pickle_path, "rb"))
+        print 'Loaded ' + str(len(top_movies)) + ' movies'
+    except Exception as e:
+        print "Pickle object not found at :" + movie_pickle_path
+        top_movies = load_and_save_movie_pickle()
+
+    post_synopsis_top_movies = load_and_save_movie_synopsis(top_movies)
+    post_imdb_synopsis_top_movies = load_and_save_imdb_movie_synopsis(post_synopsis_top_movies)
+
+    print "done"
 
 if __name__ == "__main__":
     run_movie_scrape()
