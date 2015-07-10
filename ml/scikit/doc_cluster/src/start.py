@@ -5,8 +5,8 @@ import re
 from HTMLParser import HTMLParser
 from src.dump import dump_to_file
 import urllib2
-__max_movies__ = 3
-__version__ = "_original_title"
+__max_movies__ = 100
+__version__ = "_100_movies"
 
 
 class MLStripper(HTMLParser):
@@ -77,6 +77,7 @@ def get_top_film_links_titles():
                     'title': title,
                     'title_raw' : a.text,
                     'title_year': a.text + "_(" + year_type + "_film)",
+                    # 'title_year': a.text + "_(" + "_film)",
                     'link': "http://www.imdb.com/" + a['href']
                 }
                 movies.append(movie)
@@ -95,7 +96,8 @@ def search_wiki_url(query, index):
     try:
         query += ' Film'
         query = unicode(query).encode('utf-8')
-        print 'querying movie:' + str(index) + ":" + query
+        print 'querying movie:'
+        print str(index) + ":" + query
         wp = wikipedia.page(query)
         url = wp.url
     except wikipedia.exceptions.DisambiguationError as e:
@@ -151,9 +153,8 @@ def get_response(link):
     try:
         request = urllib2.Request(link)
         return urllib2.urlopen(request)
-    except urllib2.HTTPError as e:
+    except urllib2.HTTPError, urllib2   .URLError:
         print "Error while getting response from link:" + link
-        print "Error is:" + e.message
         return None
 
 
@@ -224,6 +225,15 @@ movie_pickle_path_post_wiki_title_synopsis = __data_path + "top_100_bolly_wiki_t
 movie_pickle_path_post_imdb_synopsis = __data_path + "top_100_bolly_imdb_synopsis.pkl" +  __version__
 movie_pickle_path_post_movie_genres = __data_path + "top_100_bolly_imdb_genres.pkl" +  __version__
 
+movie_final_scrape_path = __data_path + "movie_scrape" + __version__ + ".pkl"
+
+
+def load_final_pickle_scrape():
+    print "Loading final movie scrape using pickle:" + movie_final_scrape_path
+    post_imdb_synopsis_top_movies = pickle.load(open(movie_final_scrape_path, "rb"))
+    print 'Loaded ' + str(len(post_imdb_synopsis_top_movies)) + ' movies'
+    return post_imdb_synopsis_top_movies
+
 
 def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies):
     try:
@@ -246,8 +256,8 @@ def load_and_save_movie_genres(post_synopsis_top_movies):
     except Exception as e:
         print "Getting genres:"
         post_imdb_genres_top_movies = get_imdb_movie_genres(post_synopsis_top_movies)
-        pickle.dump(post_imdb_genres_top_movies, open(movie_pickle_path_post_imdb_synopsis, "wb"))
-        print "Pickling movie objects (post post genres):" + movie_pickle_path_post_imdb_synopsis
+        pickle.dump(post_imdb_genres_top_movies, open(movie_pickle_path_post_movie_genres, "wb"))
+        print "Pickling movie objects (post post genres):" + movie_pickle_path_post_movie_genres
     return post_imdb_genres_top_movies
 
 
@@ -274,7 +284,7 @@ def load_and_save_movie_wiki_from_title_synopsis(top_movies):
     except Exception as e:
         print "Getting wiki (from title) synopsis."
         add_wiki_movies_synopsis_from_title_text(top_movies)
-        print "Pickling movie objects (post wiki synopsis):" + movie_pickle_path_post_wiki_title_synopsis
+        print "Pickling movie objects (post wiki title synopsis):" + movie_pickle_path_post_wiki_title_synopsis
         pickle.dump(top_movies, open(movie_pickle_path_post_wiki_title_synopsis, "wb"))
         return top_movies
 
@@ -306,7 +316,7 @@ def run_movie_scrape():
     post_genres = load_and_save_movie_genres(post_imdb_synopsis_top_movies)
     post_wikik_title_synopsis_top_movies = load_and_save_movie_wiki_from_title_synopsis(post_genres)
 
-    dump_to_file(post_wikik_title_synopsis_top_movies, __version__)
+    dump_to_file(post_wikik_title_synopsis_top_movies, __version__, movie_final_scrape_path)
 
     print
     print "done"
