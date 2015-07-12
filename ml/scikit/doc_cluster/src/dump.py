@@ -1,5 +1,7 @@
 import json
 import pickle
+import os
+
 list_of_f = [
     {'key': 'title', 'path': "titles"},
     {'key': 'title_year', 'path': "title_year_lists"},
@@ -11,12 +13,11 @@ list_of_f = [
     {'key': 'wiki_synopsis_title_year','path': "wiki_synopsis_title_lists"},
 ]
 
-json_path = "../data/"  + "films.json"
 
 def get_file_handler(list_of_f, __verison__= "_1"):
     file_handlers = dict()
     for d in list_of_f:
-        file_handlers[d["key"]] = open("../data/" + d["path"] + __verison__ + ".txt", "wb")
+        file_handlers[d["key"]] = open("../data/" + __verison__ + d["path"] + ".txt", "wb")
     return file_handlers
 
 def close_files(fhs):
@@ -36,9 +37,19 @@ def dump_to_file(post_imdb_synopsis_top_movies, version, movie_final_scrape_path
             # print "writing line:" + dump_line
             fh.write(dump_line.encode('utf-8').strip() + "\n")
 
+    json_path = "../data/" + version + "films.json"
+
     close_files(fhs)
-    with open(json_path + version, 'w') as fp:
+    with open(json_path, 'w') as fp:
         fp.write(json.dumps(post_imdb_synopsis_top_movies, sort_keys=True, indent=4, separators=(',', ': ')))
 
     # pcikle the final scrape
     pickle.dump(post_imdb_synopsis_top_movies, open(movie_final_scrape_path, "wb"))
+
+
+def create_directory_if_not(directory):
+    if not os.path.exists(directory):
+        print
+        print "Creating a new directory at location:" + str(directory)
+        print
+        os.makedirs(directory)

@@ -3,10 +3,12 @@ import wikipedia
 from bs4 import BeautifulSoup
 import re
 from HTMLParser import HTMLParser
-from src.dump import dump_to_file
+from src.dump import dump_to_file, create_directory_if_not
 import urllib2
+from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
+
 __max_movies__ = 100
-__version__ = "_100_movies"
+__version__ = "/_100_movies_/"
 
 
 class MLStripper(HTMLParser):
@@ -92,26 +94,44 @@ def get_top_film_links_titles():
     return movies
 
 
-def search_wiki_url(query, index):
+def search_wiki_url(film, index):
     try:
-        query += ' Film'
+        query = film + ' Film'
         query = unicode(query).encode('utf-8')
-        print 'querying movie:'
-        print str(index) + ":" + query
+        print str(index) + ' querying movie:' + ":" + query
         wp = wikipedia.page(query)
         url = wp.url
     except wikipedia.exceptions.DisambiguationError as e:
         options_list = e.options
-        for opt in options_list:
-            if 'film' in opt:
-                wp = wikipedia.page(opt)
-                url = wp.url
-                break
-    except wikipedia.exceptions.PageError as e:
+        import json
+        print 'Debug list:' + str(json.dumps(options_list, sort_keys=True, indent=4, separators=(',', ': ')))
         url = INVALID_PAGE
+        len_query = len(options_list)
+        index = 0
+        while index < len_query and url == INVALID_PAGE:
+            opt = options_list[index]
+            print "Debug film:" + opt
+            index += 1
+            if 'film' in opt or re.sub('[^A-Za-z0-9]+', ' ', opt) == film:
+                print "query Debug film:" + opt
+                wiki_url = _get_wiki_page_error(opt)
+                if wiki_url:
+                    url = wiki_url
+    except Exception as e:
+        print e
+        url = INVALID_PAGE
+
     print 'url returned:' + url
     print
     return url
+
+
+def _get_wiki_page_error(file_query):
+    try:
+        wp = wikipedia.page(file_query)
+        return wp.url
+    except wikipedia.exceptions.DisambiguationError, wikipedia.exceptions.PageError:
+        return None
 
 
 def add_wiki_links(top_movies):
@@ -218,19 +238,21 @@ def add_wiki_movies_synopsis_from_url(top_movies):
             movie['wiki_synopsis'] = inner_synopses
 
 __data_path = "../data/"
-movie_pickle_path  = __data_path + "top_100_bolly.pkl" + __version__
-movie_pickle_path_post_synopsuis = __data_path + "top_100_bolly_synopsis.pkl"  + __version__
-movie_pickle_path_post_wiki_title_synopsis = __data_path + "top_100_bolly_wiki_title_synopsis.pkl"  + __version__
+out_directory = __data_path + __version__
+movie_pickle_path  = out_directory + "top_100_bolly.pkl"
+movie_pickle_path_post_synopsuis = out_directory +  "top_100_bolly_synopsis.pkl"
+movie_pickle_path_post_wiki_title_synopsis = out_directory + "top_100_bolly_wiki_title_synopsis.pkl"
 
-movie_pickle_path_post_imdb_synopsis = __data_path + "top_100_bolly_imdb_synopsis.pkl" +  __version__
-movie_pickle_path_post_movie_genres = __data_path + "top_100_bolly_imdb_genres.pkl" +  __version__
-
-movie_final_scrape_path = __data_path + "movie_scrape" + __version__ + ".pkl"
-
+movie_pickle_path_post_imdb_synopsis = out_directory + "top_100_bolly_imdb_synopsis.pkl"
+movie_pickle_path_post_movie_genres = out_directory + "top_100_bolly_imdb_genres.pkl"
+movie_final_scrape_path = out_directory + "movie_scrape.pkl"
 
 def load_final_pickle_scrape():
     print "Loading final movie scrape using pickle:" + movie_final_scrape_path
-    post_imdb_synopsis_top_movies = pickle.load(open(movie_final_scrape_path, "rb"))
+    post_imdb_synopsis_top_movies = load_pickle_or_run_and_save_function_pickle(
+        movie_final_scrape_path,
+        " final movie scrape ",
+        run_movie_scrape, None)
     print 'Loaded ' + str(len(post_imdb_synopsis_top_movies)) + ' movies'
     return post_imdb_synopsis_top_movies
 
@@ -295,13 +317,14 @@ def load_and_save_movie_pickle():
         add_wiki_links(top_movies)
         print "Pickling movie object:" + movie_pickle_path
         pickle.dump(top_movies, open(movie_pickle_path, "wb"))
-    except Exception as e:
+    except IOError as e:
         print "Pickling part movie object:" + movie_pickle_path
         pickle.dump(top_movies, open(movie_pickle_path, "wb"))
     return top_movies
 
 
-def run_movie_scrape():
+def run_movie_scrape(x):
+    create_directory_if_not(out_directory)
 
     try:
         print "Loading pickle movie object:" + movie_pickle_path
@@ -320,6 +343,7 @@ def run_movie_scrape():
 
     print
     print "done"
+    return post_wikik_title_synopsis_top_movies
 
 if __name__ == "__main__":
-    run_movie_scrape()
+    run_movie_scrape("")
