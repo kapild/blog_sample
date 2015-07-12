@@ -10,7 +10,10 @@ list_of_f = [
     {'key': 'wiki_synopsis','path': "wiki_synopsis"},
     {'key': 'imdb_genres','path': "imdb_genres_lists"},
     {'key': 'wiki_synopsis_title','path': "wiki_synopsis_title_lists"},
-    {'key': 'wiki_synopsis_title_year','path': "wiki_synopsis_title_lists"},
+    {'key': 'wiki_synopsis_title_year','path': "wiki_synopsis_title_year_lists"},
+    {'key': 'wiki_synopsis_title_film','path': "wiki_synopsis_title_film_lists"},
+
+
 ]
 
 
@@ -36,13 +39,15 @@ def dump_to_file(post_imdb_synopsis_top_movies, version, movie_final_scrape_path
             dump_line = json.dumps(line)
             # print "writing line:" + dump_line
             fh.write(dump_line.encode('utf-8').strip() + "\n")
+    close_files(fhs)
 
     json_path = "../data/" + version + "films.json"
-
-    close_files(fhs)
+    print
+    print "Writing movie data to json file:" + json_path
     with open(json_path, 'w') as fp:
         fp.write(json.dumps(post_imdb_synopsis_top_movies, sort_keys=True, indent=4, separators=(',', ': ')))
 
+    print "..done"
     # pcikle the final scrape
     pickle.dump(post_imdb_synopsis_top_movies, open(movie_final_scrape_path, "wb"))
 

@@ -8,7 +8,7 @@ import urllib2
 from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
 
 __max_movies__ = 100
-__version__ = "/_100_movies_/"
+__version__ = "/new_wiki_search/"
 
 
 class MLStripper(HTMLParser):
@@ -45,6 +45,9 @@ def search_imbdb_movie_genre(imdb_link, index):
     return genres_inner
 
 
+    # for p in soup.findAll('ul', {'class': 'zebraList'}):
+    #     for plot in p.findAll('p', {'class': 'plotSummary'}):
+
 def get_imdb_movie_genres(top_movies):
     total_movies = len(top_movies)
     for index in range(0, total_movies):
@@ -55,6 +58,12 @@ def get_imdb_movie_genres(top_movies):
             movie['imdb_genres'] = genres
 
     return top_movies
+
+def get_film_title_year(movie):
+    return get_film_title_year(movie['title_raw'], movie['year'])
+
+def get_film_title_year(title, year):
+    return title + "_(" +year + "_film)"
 
 def get_top_film_links_titles():
     request = urllib2.Request(top_hindi_link)
@@ -78,7 +87,8 @@ def get_top_film_links_titles():
                 movie = {
                     'title': title,
                     'title_raw' : a.text,
-                    'title_year': a.text + "_(" + year_type + "_film)",
+                    'year' : year_type,
+                    'title_year': get_film_title_year(a.text, year_type),
                     # 'title_year': a.text + "_(" + "_film)",
                     'link': "http://www.imdb.com/" + a['href']
                 }
@@ -94,18 +104,40 @@ def get_top_film_links_titles():
     return movies
 
 
-def search_wiki_url(film, index):
+lambda_sort_wiki_title_by_film = lambda title: 'film' in title.lower()
+
+def sort_wiki_titles(titles, year):
+     titles = sorted(titles, key=lambda_sort_wiki_title_by_film, reverse=True)
+     for index in range(0, len(titles)):
+         title = titles[index]
+         if year in title:
+             return title
+     return titles[0]
+
+def remove_punctuations(input):
+    return re.sub('[^A-Za-z0-9]+', ' ', input).lstrip().rstrip()
+
+def search_wiki_url(film, year, index):
+    url = "INVALID_PAGE"
     try:
-        query = film + ' Film'
+        query = film
         query = unicode(query).encode('utf-8')
         print str(index) + ' querying movie:' + ":" + query
-        wp = wikipedia.page(query)
-        url = wp.url
+        wp_search = wikipedia.search(query)
+        if len(wp_search) > 0:
+            url = wikipedia.page(wp_search[0]).url
     except wikipedia.exceptions.DisambiguationError as e:
+
+        url = INVALID_PAGE
         options_list = e.options
         import json
-        print 'Debug list:' + str(json.dumps(options_list, sort_keys=True, indent=4, separators=(',', ': ')))
-        url = INVALID_PAGE
+        # print 'Debug list:' + str(json.dumps(options_list, sort_keys=True, indent=4, separators=(',', ': ')))
+        print 'sorting the list..'
+        best_title = sort_wiki_titles(options_list, year)
+        print 'best title:' + best_title
+        best_title_url = _get_wiki_page_error(best_title)
+        if best_title_url:
+            url = best_title_url
         len_query = len(options_list)
         index = 0
         while index < len_query and url == INVALID_PAGE:
@@ -134,14 +166,18 @@ def _get_wiki_page_error(file_query):
         return None
 
 
-def add_wiki_links(top_movies):
+def search_and_add_wiki_url_links(top_movies):
     total_movies = len(top_movies)
     for index in range(0, total_movies):
         movie = top_movies[index]
-        if 'title' in movie:
-            title = movie['title']
-            url = search_wiki_url(title, index)
-            movie['url'] = url
+        query = movie['title']
+        query += " movie film"
+        year = ''
+        if 'year' in movie:
+            year = movie['year']
+        query += " " + year
+        url = search_wiki_url(query, year, index)
+        movie['url'] = url
 
 
 def search_imdb_synopsis(imdb_link_ref_link):
@@ -153,7 +189,7 @@ def search_imdb_synopsis(imdb_link_ref_link):
     synopses_imdb = ""
     for div in soup.findAll('div', {'id': 'swiki.2.1'}):
         print div.text
-        synopses_imdb += div.text + "NEW_LINE"
+        synopses_imdb += div.text + " "
     return synopses_imdb
 
 def add_imdb_synopsis(top_movies):
@@ -204,26 +240,37 @@ def search_wiki_synoposis(link):
         return inner_synopses
     return ""
 
+
+def get_wiki_synopsis_via_title(title_raw, try_with_new_title, message):
+    print "Wiki raw title: " + title_raw + ", trying with " + message + "  title:" + try_with_new_title
+    link = "http://en.wikipedia.org/wiki/" + try_with_new_title
+    print "wiki link:" + link
+    inner_synopses = search_wiki_synoposis(link)
+    print inner_synopses
+    return inner_synopses
+
+
 def add_wiki_movies_synopsis_from_title_text(top_movies):
     total_movies = len(top_movies)
     for index in range(0, total_movies):
         movie = top_movies[index]
         if 'title_raw' in movie and movie['title_raw'] != "":
             title_raw = movie['title_raw']
+
+            # underscore
             title_raw_with_underscore = title_raw.replace(" ", "_")
-            print "Wiki raw title: " +  title_raw + " _Underscore:" + title_raw_with_underscore
-            link = "http://en.wikipedia.org/wiki/" + title_raw_with_underscore
-            print "wiki link:" + link
-            inner_synopses = search_wiki_synoposis(link)
-            print inner_synopses
-            movie['wiki_synopsis_title'] = inner_synopses
-            if 'title_year' in movie and movie['title_year'] != "":
-                title_raw_year = movie['title_year'].replace(" ", "_")
-                link = "http://en.wikipedia.org/wiki/" + title_raw_year
-                print "wiki (with year) link:" + link
-                inner_synopses = search_wiki_synoposis(link)
-                print inner_synopses
-                movie['wiki_synopsis_title_year'] = inner_synopses
+            movie['wiki_synopsis_title'] = get_wiki_synopsis_via_title(title_raw, title_raw_with_underscore,
+                                                                       " underscore ")
+
+            # _(film)
+            title_raw_with_film = title_raw.replace(" ", "_") + "_(film)"
+            movie['wiki_synopsis_title_film'] = get_wiki_synopsis_via_title(title_raw, title_raw_with_film,
+                                                                            " film name")
+
+            # (title_year)
+            title_raw_year = movie['title_year'].replace(" ", "_")
+            inner_synopses = get_wiki_synopsis_via_title(title_raw, title_raw_year, "_year_")
+            movie['wiki_synopsis_title_year'] = inner_synopses
 
 
 
@@ -311,14 +358,16 @@ def load_and_save_movie_wiki_from_title_synopsis(top_movies):
         return top_movies
 
 
-def load_and_save_movie_pickle():
+def load_and_save_imdb_movies():
     try:
+        print "Loading pickle IMDB movies object:" + movie_pickle_path
+        top_movies = pickle.load(open(movie_pickle_path, "rb"))
+        print 'Loaded ' + str(len(top_movies)) + ' movies'
+    except Exception as e:
+        print "Pickle object not found at :" + movie_pickle_path
         top_movies = get_top_film_links_titles()
-        add_wiki_links(top_movies)
+        search_and_add_wiki_url_links(top_movies)
         print "Pickling movie object:" + movie_pickle_path
-        pickle.dump(top_movies, open(movie_pickle_path, "wb"))
-    except IOError as e:
-        print "Pickling part movie object:" + movie_pickle_path
         pickle.dump(top_movies, open(movie_pickle_path, "wb"))
     return top_movies
 
@@ -326,14 +375,7 @@ def load_and_save_movie_pickle():
 def run_movie_scrape(x):
     create_directory_if_not(out_directory)
 
-    try:
-        print "Loading pickle movie object:" + movie_pickle_path
-        top_movies = pickle.load(open(movie_pickle_path, "rb"))
-        print 'Loaded ' + str(len(top_movies)) + ' movies'
-    except Exception as e:
-        print "Pickle object not found at :" + movie_pickle_path
-        top_movies = load_and_save_movie_pickle()
-
+    top_movies = load_and_save_imdb_movies()
     post_synopsis_top_movies = load_and_save_movie_wiki_synopsis(top_movies)
     post_imdb_synopsis_top_movies = load_and_save_imdb_movie_synopsis(post_synopsis_top_movies)
     post_genres = load_and_save_movie_genres(post_imdb_synopsis_top_movies)

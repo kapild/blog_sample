@@ -5,10 +5,9 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from src.dump import create_directory_if_not
 from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
-from src.start import load_final_pickle_scrape, out_directory
+from src.start import load_final_pickle_scrape, out_directory, remove_punctuations
 import nltk
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import mpld3
 
 from sklearn.manifold import MDS
@@ -22,7 +21,8 @@ stemmer = SnowballStemmer("english")
 list_clean_text =   ['imdb_synopsis',
                      'wiki_synopsis',
                      'wiki_synopsis_title',
-                     'wiki_synopsis_title_year'
+                     'wiki_synopsis_title_year',
+                     'wiki_synopsis_title_film'
 ]
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -84,8 +84,8 @@ def tokenize_only(text):
             filtered_tokens.append(token)
     return filtered_tokens
 
-tfidf_vectorizer = TfidfVectorizer(max_df=0.95, max_features=200000,
-                                 min_df=0.1, stop_words='english',
+tfidf_vectorizer = TfidfVectorizer(max_df=0.80, max_features=200000,
+                                 min_df=0.15, stop_words='english',
                                  use_idf=True, tokenizer=tokenize_and_stem, ngram_range=(1,3))
 
 
@@ -98,15 +98,20 @@ def init_clean_combine_scrape(top_movies):
             if key_ in movie:
                 movie[key_] = clean_wiki_text(movie[key_])
             else:
-                movie[key_]  = ""
+                movie[key_] = ""
         # get combined synopsis
         movie[COMBINED_SYNOPSIS] = get_combined_synopsis_text(movie)
 
 def get_combined_synopsis_text(movie):
     synopsis_combined = ""
+    last_synopsis_inserted = None
     for key_ in list_clean_text:
         synopsis = movie[key_]
-        synopsis_combined += synopsis + " "
+        if synopsis and synopsis != '':
+            # if first time addition or not previously added.
+            if last_synopsis_inserted == None or last_synopsis_inserted != synopsis:
+                last_synopsis_inserted = synopsis
+                synopsis_combined += synopsis + " "
     return synopsis_combined
 
 def clean_wiki_text(raw_text):
@@ -114,14 +119,17 @@ def clean_wiki_text(raw_text):
     #strips html formatting and converts to unicode
     # if len(raw_text) != len(text):
         # print "Striped:" + text
-    return text
+
+    text = re.sub('NEW_LINE', ' ', text).strip()
+    pun_removed = remove_punctuations(text)
+    return pun_removed
 
 
 def get_k_means_cluster(tfidf_matrix, num_clusters):
     from sklearn.cluster import KMeans
 
     print ("Running k-means on " + str(num_clusters) + " clusters.")
-    km = KMeans(n_clusters=num_clusters)
+    km = KMeans(n_clusters=num_clusters, verbose=1)
 
     km.fit(tfidf_matrix)
     # pickle km here.
@@ -152,7 +160,7 @@ def get_clusters_in_frame(clusters, top_movies):
     print ()
     return frame, titles
 
-def get_top_k_terms_cluster(km, terms, vocab_frame, frame, num_clusters, top_k=10):
+def get_top_k_terms_cluster(km, terms, vocab_frame, frame, num_clusters, top_k=30):
     print("Top terms per cluster:")
     print()
     order_centroids = km.cluster_centers_.argsort()[:, ::-1]
@@ -187,8 +195,8 @@ def perform_mds(tfidf_matrix, titles, top_words_list, clusters):
     xs, ys = pos[:, 0], pos[:, 1]
     print()
     print()
-    # visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters)
-    visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters)
+    visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters)
+    # visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters)
     hierarchical_clustering(dist)
 
 def visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters):
@@ -258,7 +266,8 @@ def visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters):
 
 def visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters):
     #set up colors per clusters using a dict
-    cluster_colors = {0: '#1b9e77', 1: '#d95f02', 2: '#7570b3', 3: '#e7298a', 4: '#66a61e'}
+    cluster_colors = {0: '#1b9e77', 1: '#d95f02', 2: '#7570b3', 3: '#e7298a', 4: '#66a61e',
+                      5: '#aaaaaa', 6: '#bbbbbb', 7: '#cccccc', 8: '#dddddd', 9: '#eeeeee'}
 
     #set up cluster names using a dict
     cluster_names = {0: top_words_list[0],
@@ -279,7 +288,8 @@ def visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters):
     #note that I use the cluster_name and cluster_color dicts with the 'name' lookup to return the appropriate color/label
     for name, group in groups:
         ax.plot(group.x, group.y, marker='o', linestyle='', ms=12,
-                label=cluster_names[name], color=cluster_colors[name],
+                # label=cluster_names[name],
+                color=cluster_colors[name],
                 mec='none')
         ax.set_aspect('auto')
         ax.tick_params(\
@@ -363,7 +373,7 @@ def hierarchical_clustering(dist):
     plt.tight_layout() #show plot with tight layout
 
     #uncomment below to save figure
-    plt.savefig('ward_clusters.png', dpi=200) #save figure as ward_clusters
+    plt.savefig(hireachical_cluster_path, dpi=200) #save figure as ward_clusters
     plt.close()
     
 def get_synopsis_stems(top_movies):
@@ -376,21 +386,27 @@ def get_synopsis_stems(top_movies):
     )
 
     vocab_frame = pd.DataFrame({'words': stem_unstem['totalvocab_tokenized']}, index=stem_unstem['totalvocab_stemmed'])
+    print ('there are ' + str(vocab_frame.shape[0]) + ' items in vocab_frame')
+    print (vocab_frame.head())
+    print ()
+    print ()
+    print ()
+    print ()
 
     tfidf_terms = load_pickle_or_run_and_save_function_pickle(
         synopsis_tfidf_terms_path,
         "Tf-idf and vocab terms.",
         lambda_tfidf_terms,
         stem_unstem['synossis_list']
+        # TRY with STEM version also.
     )
     print ("Shape tfidf Matrix: " + str(tfidf_terms['tfidf_matrix'].shape))
-
     return vocab_frame, tfidf_terms['tfidf_matrix'], tfidf_terms['terms']
-    print
 
 __cluster__out_directory = out_directory + "/cluser/"
 synopsis_stems_unstemmed_path = __cluster__out_directory + "_movie_stem_unstemm.pkl"
 synopsis_tfidf_terms_path = __cluster__out_directory + "tfidf_terms.pkl"
+hireachical_cluster_path = __cluster__out_directory + "cluster.png"
 
 if __name__ == "__main__":
     create_directory_if_not(__cluster__out_directory)

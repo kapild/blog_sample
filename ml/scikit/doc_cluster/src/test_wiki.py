@@ -46,5 +46,10 @@ def test():
     query = "Manorama 1959 film"
     search_wiki_url(query, 1)
 
+def remove_punctuations(input):
+    return re.sub('[^A-Za-z0-9]+', ' ', input).lstrip().rstrip()
+
 if __name__ == "__main__":
-    test()
+    # print remove_punctuations(":3 Idiots_(2009_film)..")
+    x = "\nNEW_LINE"
+    print re.sub('NEW_LINE', ' ', x).lstrip().rstrip()
