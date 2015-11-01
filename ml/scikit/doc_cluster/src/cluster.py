@@ -125,15 +125,17 @@ def clean_wiki_text(raw_text):
     return pun_removed
 
 
-def get_k_means_cluster(tfidf_matrix, num_clusters):
+def get_k_means_cluster(tfidf_matrix, num_clusters, is_list=True):
     from sklearn.cluster import KMeans
 
     print ("Running k-means on " + str(num_clusters) + " clusters.")
-    km = KMeans(n_clusters=num_clusters, verbose=1)
+    km = KMeans(n_clusters=num_clusters, verbose=0)
 
     km.fit(tfidf_matrix)
     # pickle km here.
-    clusters = km.labels_.tolist()
+    clusters = km.labels_
+    if is_list:
+        clusters = km.labels_.tolist()
     return km, clusters
 
 
@@ -270,11 +272,11 @@ def visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters):
                       5: '#aaaaaa', 6: '#bbbbbb', 7: '#cccccc', 8: '#dddddd', 9: '#eeeeee'}
 
     #set up cluster names using a dict
-    cluster_names = {0: top_words_list[0],
-                 1: top_words_list[1],
-                 2: top_words_list[2],
-                 3: top_words_list[3],
-                 4: top_words_list[4]}
+    # cluster_names = {0: top_words_list[0],
+    #              1: top_words_list[1],
+    #              2: top_words_list[2],
+    #              3: top_words_list[3],
+    #              4: top_words_list[4]}
 
     #create data frame that has the result of the MDS plus the cluster numbers and titles
     all_df = dict(x=xs, y=ys, label=clusters, title=titles)
@@ -326,6 +328,7 @@ def get_tfidf_terms(list_X):
     print ('Running tfid...')
     tfidf_matrix = tfidf_vectorizer.fit_transform(list_X)
     print ('.. done')
+    print ('Total vocab terms:' + str(len(tfidf_vectorizer.get_feature_names())))
     return {
         'tfidf_matrix' : tfidf_matrix ,
         'terms' : tfidf_vectorizer.get_feature_names()
@@ -391,6 +394,10 @@ def get_tf_idf_matix_terms(cluster_out_dir, list_X):
     return tfidf_terms
 
 
+def get_terms_path(cluster_out_dir):
+    return cluster_out_dir + "/terms"
+
+
 def get_synopsis_stems(top_movies, cluster_out_dir):
 
     synopsis_stems_unstemmed_path = cluster_out_dir + "_movie_stem_unstemm.pkl"
@@ -402,7 +409,7 @@ def get_synopsis_stems(top_movies, cluster_out_dir):
         top_movies
     )
     tfidf_terms = get_tf_idf_matix_terms(cluster_out_dir, stem_unstem['synossis_list'])
-    dump_list_to_file(stem_unstem['synossis_list'], cluster_out_dir + "/terms")
+    dump_list_to_file(stem_unstem['synossis_list'], get_terms_path(cluster_out_dir))
 
     print ("Shape tfidf Matrix: " + str(tfidf_terms['tfidf_matrix'].shape))
 
@@ -424,14 +431,19 @@ def run_clustering(cluster_out_dir):
     top_movies = load_final_pickle_scrape(get_out_directory())
     init_clean_combine_scrape(top_movies)
     vocab_frame, tfidf_matrix, terms = get_synopsis_stems(top_movies, cluster_out_dir)
-    num_clusters = 5
+    num_clusters = 6
     km, clusters = get_k_means_cluster(tfidf_matrix, num_clusters)
     frame, titles = get_clusters_in_frame(clusters, top_movies)
     top_words_list = get_top_k_terms_cluster(km, terms, vocab_frame, frame, num_clusters)
     perform_mds(tfidf_matrix, titles, top_words_list, clusters, cluster_out_dir)
 
+_cluster_dir = "/cluser_2/"
+
+
+def get_cluster_directory(out_directory):
+    return out_directory + _cluster_dir
+
 
 if __name__ == "__main__":
     out_directory = get_out_directory()
-    __cluster__out_directory = out_directory + "/cluser_2/"
-    run_clustering(__cluster__out_directory)
+    run_clustering(get_cluster_directory(out_directory))

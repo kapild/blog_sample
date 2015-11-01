@@ -397,7 +397,7 @@ def run_movie_scrape(out_dir):
 
     # step 7
     movie_final_scrape_path = get_movie_scrape_path(out_dir)
-    dump_movie_pickle_data(post_wikik_title_synopsis_top_movies, __version__, movie_final_scrape_path)
+    dump_movie_pickle_data(post_wikik_title_synopsis_top_movies, out_dir, movie_final_scrape_path)
 
     print
     print "done"
