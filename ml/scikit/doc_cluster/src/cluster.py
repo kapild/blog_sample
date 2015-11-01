@@ -3,9 +3,9 @@ from bs4 import BeautifulSoup
 import re
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from src.dump import create_directory_if_not
+from src.dump import create_directory_if_not, dump_cluster_terms_to_file, dump_list_to_file
 from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
-from src.start import load_final_pickle_scrape, out_directory, remove_punctuations
+from src.start import load_final_pickle_scrape, remove_punctuations, get_out_directory
 import nltk
 import matplotlib.pyplot as plt
 import mpld3
@@ -182,7 +182,7 @@ def get_top_k_terms_cluster(km, terms, vocab_frame, frame, num_clusters, top_k=3
     return top_words_list
 
 
-def perform_mds(tfidf_matrix, titles, top_words_list, clusters):
+def perform_mds(tfidf_matrix, titles, top_words_list, clusters, cluster_out_dir):
     MDS()
     dist = 1 - cosine_similarity(tfidf_matrix)
     # convert two components as we're plotting points in a two-dimensional plane
@@ -197,7 +197,7 @@ def perform_mds(tfidf_matrix, titles, top_words_list, clusters):
     print()
     visualzie_doc_cluster(xs, ys, titles, top_words_list, clusters)
     # visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters)
-    hierarchical_clustering(dist)
+    hierarchical_clustering(dist, cluster_out_dir)
 
 def visualize_doc_cluster_d3(xs, ys, titles, top_words_list, clusters):
     #create data frame that has the result of the MDS plus the cluster numbers and titles
@@ -322,9 +322,9 @@ lambda_stem_un_stemm_synopsis = lambda x: stem_un_stem_synopsis(x)
 lambda_tfidf_terms = lambda x: get_tfidf_terms(x)
 
 
-def get_tfidf_terms(synopsis):
+def get_tfidf_terms(list_X):
     print ('Running tfid...')
-    tfidf_matrix = tfidf_vectorizer.fit_transform(synopsis)
+    tfidf_matrix = tfidf_vectorizer.fit_transform(list_X)
     print ('.. done')
     return {
         'tfidf_matrix' : tfidf_matrix ,
@@ -355,7 +355,7 @@ def stem_un_stem_synopsis(top_movies):
     return pickle_obj
 
 
-def hierarchical_clustering(dist):
+def hierarchical_clustering(dist, cluster_out_dir):
     from scipy.cluster.hierarchy import ward, dendrogram
 
     linkage_matrix = ward(dist) #define the linkage_matrix using ward clustering pre-computed distances
@@ -373,10 +373,27 @@ def hierarchical_clustering(dist):
     plt.tight_layout() #show plot with tight layout
 
     #uncomment below to save figure
+    hireachical_cluster_path = cluster_out_dir + "cluster.png"
+
     plt.savefig(hireachical_cluster_path, dpi=200) #save figure as ward_clusters
     plt.close()
-    
-def get_synopsis_stems(top_movies):
+
+
+def get_tf_idf_matix_terms(cluster_out_dir, list_X):
+    synopsis_tfidf_terms_path = cluster_out_dir + "tfidf_terms.pkl"
+    tfidf_terms = load_pickle_or_run_and_save_function_pickle(
+        synopsis_tfidf_terms_path,
+        "Tf-idf and vocab terms.",
+        lambda_tfidf_terms,
+        list_X
+        # TRY with STEM version also.
+    )
+    return tfidf_terms
+
+
+def get_synopsis_stems(top_movies, cluster_out_dir):
+
+    synopsis_stems_unstemmed_path = cluster_out_dir + "_movie_stem_unstemm.pkl"
 
     stem_unstem = load_pickle_or_run_and_save_function_pickle(
         synopsis_stems_unstemmed_path,
@@ -384,6 +401,10 @@ def get_synopsis_stems(top_movies):
         lambda_stem_un_stemm_synopsis,
         top_movies
     )
+    tfidf_terms = get_tf_idf_matix_terms(cluster_out_dir, stem_unstem['synossis_list'])
+    dump_list_to_file(stem_unstem['synossis_list'], cluster_out_dir + "/terms")
+
+    print ("Shape tfidf Matrix: " + str(tfidf_terms['tfidf_matrix'].shape))
 
     vocab_frame = pd.DataFrame({'words': stem_unstem['totalvocab_tokenized']}, index=stem_unstem['totalvocab_stemmed'])
     print ('there are ' + str(vocab_frame.shape[0]) + ' items in vocab_frame')
@@ -393,29 +414,24 @@ def get_synopsis_stems(top_movies):
     print ()
     print ()
 
-    tfidf_terms = load_pickle_or_run_and_save_function_pickle(
-        synopsis_tfidf_terms_path,
-        "Tf-idf and vocab terms.",
-        lambda_tfidf_terms,
-        stem_unstem['synossis_list']
-        # TRY with STEM version also.
-    )
-    print ("Shape tfidf Matrix: " + str(tfidf_terms['tfidf_matrix'].shape))
     return vocab_frame, tfidf_terms['tfidf_matrix'], tfidf_terms['terms']
 
-__cluster__out_directory = out_directory + "/cluser/"
-synopsis_stems_unstemmed_path = __cluster__out_directory + "_movie_stem_unstemm.pkl"
-synopsis_tfidf_terms_path = __cluster__out_directory + "tfidf_terms.pkl"
-hireachical_cluster_path = __cluster__out_directory + "cluster.png"
 
-if __name__ == "__main__":
-    create_directory_if_not(__cluster__out_directory)
 
-    top_movies = load_final_pickle_scrape()
+def run_clustering(cluster_out_dir):
+    global top_movies, vocab_frame, tfidf_matrix, terms, num_clusters, km, clusters, frame, titles, top_words_list
+    create_directory_if_not(cluster_out_dir)
+    top_movies = load_final_pickle_scrape(get_out_directory())
     init_clean_combine_scrape(top_movies)
-    vocab_frame, tfidf_matrix, terms = get_synopsis_stems(top_movies)
+    vocab_frame, tfidf_matrix, terms = get_synopsis_stems(top_movies, cluster_out_dir)
     num_clusters = 5
     km, clusters = get_k_means_cluster(tfidf_matrix, num_clusters)
     frame, titles = get_clusters_in_frame(clusters, top_movies)
     top_words_list = get_top_k_terms_cluster(km, terms, vocab_frame, frame, num_clusters)
-    perform_mds(tfidf_matrix, titles, top_words_list, clusters)
+    perform_mds(tfidf_matrix, titles, top_words_list, clusters, cluster_out_dir)
+
+
+if __name__ == "__main__":
+    out_directory = get_out_directory()
+    __cluster__out_directory = out_directory + "/cluser_2/"
+    run_clustering(__cluster__out_directory)

@@ -3,7 +3,7 @@ import wikipedia
 from bs4 import BeautifulSoup
 import re
 from HTMLParser import HTMLParser
-from src.dump import dump_to_file, create_directory_if_not
+from src.dump import create_directory_if_not, dump_movie_pickle_data
 import urllib2
 from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
 
@@ -283,10 +283,10 @@ def add_wiki_movies_synopsis_from_url(top_movies):
             print inner_synopses
             movie['wiki_synopsis'] = inner_synopses
 
-def load_final_pickle_scrape():
-    print "Loading final movie scrape using pickle:" + movie_final_scrape_path
+def load_final_pickle_scrape(out_dir):
+    print "Loading final movie scrape using pickle:" + get_movie_scrape_path(out_dir)
     post_imdb_synopsis_top_movies = load_pickle_or_run_and_save_function_pickle(
-        movie_final_scrape_path,
+        get_movie_scrape_path(out_dir),
         " final movie scrape ",
         run_movie_scrape, None)
     print 'Loaded ' + str(len(post_imdb_synopsis_top_movies)) + ' movies'
@@ -361,6 +361,10 @@ def load_and_save_imdb_movies(movie_pickle_path):
     return top_movies
 
 
+def get_movie_scrape_path(out_dir):
+    return out_dir + "movie_scrape.pkl"
+
+
 def run_movie_scrape(out_dir):
     # step 1
     create_directory_if_not(out_dir)
@@ -392,8 +396,8 @@ def run_movie_scrape(out_dir):
     )
 
     # step 7
-    movie_final_scrape_path = out_dir + "movie_scrape.pkl"
-    dump_to_file(post_wikik_title_synopsis_top_movies, __version__, movie_final_scrape_path)
+    movie_final_scrape_path = get_movie_scrape_path(out_dir)
+    dump_movie_pickle_data(post_wikik_title_synopsis_top_movies, __version__, movie_final_scrape_path)
 
     print
     print "done"
@@ -404,6 +408,10 @@ __data_path = "../data/"
 __version__ = "/nov_1/"
 
 
+def get_out_directory():
+     return __data_path + __version__
+
+
 if __name__ == "__main__":
-    out_directory = __data_path + __version__
+    out_directory = get_out_directory()
     run_movie_scrape(out_directory)
