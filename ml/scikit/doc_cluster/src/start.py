@@ -8,7 +8,6 @@ import urllib2
 from src.pickle_utils import load_pickle_or_run_and_save_function_pickle
 
 __max_movies__ = 100
-__version__ = "/new_wiki_search/"
 
 
 class MLStripper(HTMLParser):
@@ -284,16 +283,6 @@ def add_wiki_movies_synopsis_from_url(top_movies):
             print inner_synopses
             movie['wiki_synopsis'] = inner_synopses
 
-__data_path = "../data/"
-out_directory = __data_path + __version__
-movie_pickle_path  = out_directory + "top_100_bolly.pkl"
-movie_pickle_path_post_synopsuis = out_directory +  "top_100_bolly_synopsis.pkl"
-movie_pickle_path_post_wiki_title_synopsis = out_directory + "top_100_bolly_wiki_title_synopsis.pkl"
-
-movie_pickle_path_post_imdb_synopsis = out_directory + "top_100_bolly_imdb_synopsis.pkl"
-movie_pickle_path_post_movie_genres = out_directory + "top_100_bolly_imdb_genres.pkl"
-movie_final_scrape_path = out_directory + "movie_scrape.pkl"
-
 def load_final_pickle_scrape():
     print "Loading final movie scrape using pickle:" + movie_final_scrape_path
     post_imdb_synopsis_top_movies = load_pickle_or_run_and_save_function_pickle(
@@ -304,7 +293,7 @@ def load_final_pickle_scrape():
     return post_imdb_synopsis_top_movies
 
 
-def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies):
+def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies, movie_pickle_path_post_imdb_synopsis):
     try:
         print "Loading pickle movie object(post imdb synopsis):" + movie_pickle_path_post_imdb_synopsis
         post_imdb_synopsis_top_movies = pickle.load(open(movie_pickle_path_post_imdb_synopsis, "rb"))
@@ -317,7 +306,7 @@ def load_and_save_imdb_movie_synopsis(post_synopsis_top_movies):
 
     return post_imdb_synopsis_top_movies
 
-def load_and_save_movie_genres(post_synopsis_top_movies):
+def load_and_save_movie_genres(post_synopsis_top_movies, movie_pickle_path_post_movie_genres):
     try:
         print "Loading pickle movie object(post genres):" + movie_pickle_path_post_movie_genres
         post_imdb_genres_top_movies = pickle.load(open(movie_pickle_path_post_movie_genres, "rb"))
@@ -330,7 +319,7 @@ def load_and_save_movie_genres(post_synopsis_top_movies):
     return post_imdb_genres_top_movies
 
 
-def load_and_save_movie_wiki_synopsis(top_movies):
+def load_and_save_movie_wiki_synopsis(top_movies, movie_pickle_path_post_synopsuis):
     try:
         print "Loading pickle movie object(post wiki synopsis):" + movie_pickle_path_post_synopsuis
         post_synopsis_top_movies = pickle.load(open(movie_pickle_path_post_synopsuis, "rb"))
@@ -344,7 +333,7 @@ def load_and_save_movie_wiki_synopsis(top_movies):
 
         return top_movies
 
-def load_and_save_movie_wiki_from_title_synopsis(top_movies):
+def load_and_save_movie_wiki_from_title_synopsis(top_movies, movie_pickle_path_post_wiki_title_synopsis):
     try:
         print "Loading pickle movie object(post wiki title synopsis):" + movie_pickle_path_post_wiki_title_synopsis
         post_synopsis_top_movies = pickle.load(open(movie_pickle_path_post_wiki_title_synopsis, "rb"))
@@ -358,7 +347,7 @@ def load_and_save_movie_wiki_from_title_synopsis(top_movies):
         return top_movies
 
 
-def load_and_save_imdb_movies():
+def load_and_save_imdb_movies(movie_pickle_path):
     try:
         print "Loading pickle IMDB movies object:" + movie_pickle_path
         top_movies = pickle.load(open(movie_pickle_path, "rb"))
@@ -372,20 +361,49 @@ def load_and_save_imdb_movies():
     return top_movies
 
 
-def run_movie_scrape(x):
-    create_directory_if_not(out_directory)
+def run_movie_scrape(out_dir):
+    # step 1
+    create_directory_if_not(out_dir)
 
-    top_movies = load_and_save_imdb_movies()
-    post_synopsis_top_movies = load_and_save_movie_wiki_synopsis(top_movies)
-    post_imdb_synopsis_top_movies = load_and_save_imdb_movie_synopsis(post_synopsis_top_movies)
-    post_genres = load_and_save_movie_genres(post_imdb_synopsis_top_movies)
-    post_wikik_title_synopsis_top_movies = load_and_save_movie_wiki_from_title_synopsis(post_genres)
+    # step 2
+    movie_pickle_path  = out_dir + "top_100_bolly.pkl"
+    top_movies = load_and_save_imdb_movies(movie_pickle_path)
 
+    # step 3
+    movie_pickle_path_post_synopsuis = out_dir +  "top_100_bolly_synopsis.pkl"
+    post_synopsis_top_movies = load_and_save_movie_wiki_synopsis(top_movies, movie_pickle_path_post_synopsuis)
+
+    # step 4
+    movie_pickle_path_post_imdb_synopsis = out_dir + "top_100_bolly_imdb_synopsis.pkl"
+    post_imdb_synopsis_top_movies = load_and_save_imdb_movie_synopsis(
+        post_synopsis_top_movies,
+        movie_pickle_path_post_imdb_synopsis
+    )
+
+    # step 5
+    movie_pickle_path_post_movie_genres = out_dir + "top_100_bolly_imdb_genres.pkl"
+    post_genres = load_and_save_movie_genres(post_imdb_synopsis_top_movies, movie_pickle_path_post_movie_genres)
+
+    # step 6
+    movie_pickle_path_post_wiki_title_synopsis = out_dir + "top_100_bolly_wiki_title_synopsis.pkl"
+    post_wikik_title_synopsis_top_movies = load_and_save_movie_wiki_from_title_synopsis(
+        post_genres,
+        movie_pickle_path_post_wiki_title_synopsis
+    )
+
+    # step 7
+    movie_final_scrape_path = out_dir + "movie_scrape.pkl"
     dump_to_file(post_wikik_title_synopsis_top_movies, __version__, movie_final_scrape_path)
 
     print
     print "done"
     return post_wikik_title_synopsis_top_movies
 
+
+__data_path = "../data/"
+__version__ = "/nov_1/"
+
+
 if __name__ == "__main__":
-    run_movie_scrape("")
+    out_directory = __data_path + __version__
+    run_movie_scrape(out_directory)
