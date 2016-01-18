@@ -1,0 +1,26 @@
+For number of clusters: 2 average sil score:0.0289414972859
+Running k-means on 3 clusters.
+For number of clusters: 3 average sil score:0.0244996939853
+Running k-means on 4 clusters.
+For number of clusters: 4 average sil score:0.0139064968694
+Running k-means on 5 clusters.
+For number of clusters: 5 average sil score:0.0140407358409
+Running k-means on 6 clusters.
+For number of clusters: 6 average sil score:0.0168767243953
+Running k-means on 7 clusters.
+For number of clusters: 7 average sil score:-0.00302861287802
+Running k-means on 8 clusters.
+For number of clusters: 8 average sil score:-0.0195715012211
+Running k-means on 10 clusters.
+For number of clusters: 10 average sil score:0.0106137703682
+Running k-means on 12 clusters.
+For number of clusters: 12 average sil score:-0.0101995437556
+Running k-means on 13 clusters.
+For number of clusters: 13 average sil score:0.00703064813644
+Running k-means on 15 clusters.
+For number of clusters: 15 average sil score:-0.0146350767247
+Running k-means on 20 clusters.
+For number of clusters: 20 average sil score:-0.0305078495169
+Running k-means on 30 clusters.
+For number of clusters: 30 average sil score:-0.0347331265108
+

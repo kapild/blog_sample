@@ -4,15 +4,17 @@ stemmer = SnowballStemmer("english")
 import nltk
 import re
 
-def get_k_means_cluster(tfidf_matrix, num_clusters):
+def get_k_means_cluster(tfidf_matrix, num_clusters, is_list=True):
     from sklearn.cluster import KMeans
 
     print ("Running k-means on " + str(num_clusters) + " clusters.")
-    km = KMeans(n_clusters=num_clusters, verbose=1)
+    km = KMeans(n_clusters=num_clusters, verbose=0)
 
     km.fit(tfidf_matrix)
     # pickle km here.
-    clusters = km.labels_.tolist()
+    clusters = km.labels_
+    if is_list:
+        clusters = km.labels_.tolist()
     return km, clusters
 
 from sklearn.feature_extraction.text import TfidfVectorizer

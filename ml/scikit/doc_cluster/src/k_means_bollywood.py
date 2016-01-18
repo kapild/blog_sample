@@ -24,8 +24,8 @@ def load_label_and_terms(label_path, terms_path):
         X.append(obj)
     return X
 
-def get_cluster(tfid_terms, num_cluster):
-    X = tfid_terms['tfidf_matrix']
+
+def run_silhoutte_analysis(X, cluster, num_cluster):
 
     fig, ax1 = plt.subplots(1, 1)
     fig.set_size_inches(18, 7)
@@ -39,12 +39,9 @@ def get_cluster(tfid_terms, num_cluster):
     # Initialize the clusterer with n_clusters value and a random generator
     # seed of 10 for reproducibility.
 
-    km, cluster = get_k_means_cluster(X, num_cluster, is_list=False)
     sil_avg = silhouette_score(X, cluster)
-
     print "For number of clusters: " + str(num_cluster) + " average sil score:" + str(sil_avg)
-
-  # Compute the silhouette scores for each sample
+    # Compute the silhouette scores for each sample
     sample_silhouette_values = silhouette_samples(X, cluster)
     y_lower = 10
     for i in range(num_cluster):
@@ -64,18 +61,21 @@ def get_cluster(tfid_terms, num_cluster):
         ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
         # Compute the new y_lower for next plot
         y_lower = y_upper + 10  # 10 for the 0 samples
-
     ax1.set_title("The silhouette plot for the various clusters.")
     ax1.set_xlabel("The silhouette coefficient values")
     ax1.set_ylabel("Cluster label")
-
     # The vertical line for average silhoutte score of all the values
     ax1.axvline(x=sil_avg, color="red", linestyle="--")
-
     ax1.set_yticks([])  # Clear the yaxis labels / ticks
-
     # # 2nd Plot showing the actual clusters formed
     plt.show()
+
+
+def get_cluster(tfid_terms, num_cluster):
+    X = tfid_terms['tfidf_matrix']
+
+    km, cluster = get_k_means_cluster(X, num_cluster, is_list=False)
+    run_silhoutte_analysis(X, cluster, num_cluster)
 
 
 cluster_dir = "../data/part1/"
